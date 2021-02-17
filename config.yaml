@@ -1,0 +1,246 @@
+snowflake:
+  config:
+    default_fetch_interval: 30
+    prefix: snowflake
+    metrics:
+      # Account metering # https://docs.snowflake.com/en/sql-reference/account-usage/metering_history.html
+      - category: billing
+        help: Captures billing information from the metering_history view in the account_usage schema
+        labels:
+          - 'SERVICE_TYPE'
+          - 'NAME'
+        metrics:
+          - key: AVG(CREDITS_USED_COMPUTE)
+            name: virtual_warehouse_avg
+            type: gauge
+          - key: sum(CREDITS_USED_COMPUTE)
+            name: virtual_warehouse_sum
+            type: gauge
+          - key: avg(CREDITS_USED_CLOUD_SERVICES)
+            name: cloud_services_avg
+            type: gauge
+          - key: sum(CREDITS_USED_CLOUD_SERVICES)
+            name: cloud_services_sum
+            type: gauge
+          - key: avg(CREDITS_USED)
+            name: credits_total_avg
+            type: gauge
+          - key: sum(CREDITS_USED)
+            name: credits_total_sum
+            type: gauge
+        statement: >-
+            select SERVICE_TYPE, NAME, avg(CREDITS_USED_COMPUTE), sum(CREDITS_USED_COMPUTE), avg(CREDITS_USED_CLOUD_SERVICES), 
+            sum(CREDITS_USED_CLOUD_SERVICES), avg(CREDITS_USED), sum(CREDITS_USED) 
+            from "SNOWFLAKE"."ACCOUNT_USAGE"."METERING_HISTORY" where start_time >= date_trunc(day, current_date) group by 1, 2;
+      # https://docs.snowflake.com/en/sql-reference/account-usage/automatic_clustering_history.html
+      - category: automatic_clustering
+        help: information returned by the view includes the credits consumed, bytes updated, and rows updated each time a table is reclustered
+        labels:
+          - 'table_name'
+          - 'database_name'
+          - 'schema_name'
+        metrics:
+          - key: avg(credits_used)
+            name: credits_used_avg
+            type: gauge
+          - key: sum(credits_used)
+            name: credits_used_sum
+            type: gauge
+          - key: avg(num_bytes_reclustered)
+            name: num_bytes_reclustered_avg
+            type: gauge
+          - key: sum(num_bytes_reclustered)
+            name: num_bytes_reclustered_sum
+            type: gauge
+          - key: avg(num_rows_reclustered)
+            name: num_rows_reclustered_avg
+            type: gauge
+          - key: sum(num_rows_reclustered)
+            name: num_rows_reclusted_sum
+            type: gauge
+        statement: >-
+            select table_name, database_name, schema_name, avg(credits_used), sum(credits_used),
+            avg(num_bytes_reclustered), sum(num_bytes_reclustered), avg(num_rows_reclustered), sum(num_rows_reclustered) 
+            from "SNOWFLAKE"."ACCOUNT_USAGE"."AUTOMATIC_CLUSTERING_HISTORY" where start_time >= date_trunc(day, current_date) group by 1, 2, 3;
+      # https://docs.snowflake.com/en/sql-reference/account-usage/query_history.html
+      - category: warehouse_performance
+        help: Capturing information about how much load is placed on each virtual warehouse
+        labels:
+          - 'QUERY_TYPE'
+          - 'WAREHOUSE_NAME'
+          - 'DATABASE_NAME'
+          - 'SCHEMA_NAME'
+        metrics:
+          - key: avg(EXECUTION_TIME)
+            name: execution_time_avg
+            type: gauge
+          - key: avg(COMPILATION_TIME)
+            name: compilation_time_avg
+            type: gauge
+          - key: avg(BYTES_SCANNED)
+            name: bytes_scanned_avg
+            type: gauge
+          - key: avg(BYTES_WRITTEN)
+            name: bytes_written_avg
+            type: gauge
+          - key: avg(BYTES_DELETED)
+            name: bytes_deleted_avg
+            type: gauge
+          - key: avg(BYTES_SPILLED_TO_LOCAL_STORAGE)
+            name: bytes_spilled_to_local_storage_avg
+            type: gauge
+          - key: avg(BYTES_SPILLED_TO_REMOTE_STORAGE)
+            name: bytes_spilled_to_remote_storage_avg
+            type: gauge
+        statement: >-
+            select QUERY_TYPE, WAREHOUSE_NAME, DATABASE_NAME, SCHEMA_NAME, avg(EXECUTION_TIME),
+            avg(COMPILATION_TIME), avg(BYTES_SCANNED), avg(BYTES_WRITTEN), avg(BYTES_DELETED),
+            avg(BYTES_SPILLED_TO_LOCAL_STORAGE), avg(BYTES_SPILLED_TO_REMOTE_STORAGE) 
+            from "SNOWFLAKE"."ACCOUNT_USAGE"."QUERY_HISTORY" where start_time >= date_trunc(day, current_date) group by 1, 2, 3, 4;
+      # https://docs.snowflake.com/en/sql-reference/account-usage/data_transfer_history.html
+      - category: data_transfer
+        help: Data transferred from Snowflake tables into a different cloud storage provider’s network
+        labels:
+          - 'source_cloud'
+          - 'source_region'
+          - 'target_cloud'
+          - 'target_region'
+          - 'transfer_type'
+        metrics:
+          - key: avg(bytes_transferred)
+            name: bytes_transferred_avg
+            type: gauge
+          - key: sum(bytes_transferred)
+            name: bytes_transferred_sum
+            type: gauge
+        statement: >-
+            select source_cloud, source_region, target_cloud, target_region, transfer_type,
+            avg(bytes_transferred), sum(bytes_transferred) from "SNOWFLAKE"."ACCOUNT_USAGE"."DATA_TRANSFER_HISTORY"
+            where start_time >= date_trunc(day, current_date) group by 1, 2, 3, 4, 5;
+      # https://docs.snowflake.com/en/sql-reference/account-usage/database_storage_usage_history.html
+      - category: database_storage
+        help: The average daily storage usage in bytes for databases in the account
+        labels:
+          - 'database_name'
+        metrics:
+          - key: AVERAGE_DATABASE_BYTES
+            name: database_bytes_avg
+            type: gauge
+          - key: AVERAGE_FAILSAFE_BYTES
+            name: failsafe_bytes_avg
+            type: gauge
+        statement: >-
+            SELECT DATABASE_NAME, AVERAGE_DATABASE_BYTES, AVERAGE_FAILSAFE_BYTES from "SNOWFLAKE"."ACCOUNT_USAGE"."DATABASE_STORAGE_USAGE_HISTORY" ORDER BY USAGE_DATE DESC LIMIT 1;
+      # https://docs.snowflake.com/en/sql-reference/account-usage/pipe_usage_history.html
+      - category: pipe_usage
+        help: data loaded into Snowflake tables using Snowpipe
+        labels:
+          - pipe_name
+        metrics:
+          - key: avg(credits_used)
+            name: credits_used_avg
+            type: gauge
+          - key: sum(credits_used)
+            name: credits_used_sum
+            type: gauge
+          - key: avg(bytes_inserted)
+            name: bytes_inserted_avg
+            type: gauge
+          - key: sum(bytes_inserted)
+            name: bytes_inserted_sum
+            type: gauge
+          - key: avg(files_inserted)
+            name: files_inserted_avg
+            type: gauge
+          - key: sum(files_inserted)
+            name: files_inserted_sum
+            type: gauge
+        statement: >-
+            select pipe_name, avg(credits_used), sum(credits_used), avg(bytes_inserted), sum(bytes_inserted),
+            avg(files_inserted), sum(files_inserted) from "SNOWFLAKE"."ACCOUNT_USAGE"."PIPE_USAGE_HISTORY"
+            where start_time >= date_trunc(day, current_date) group by 1;
+      # https://docs.snowflake.com/en/sql-reference/account-usage/replication_usage_history.html
+      - category: replication_usage
+        help: replication history for a specified database
+        labels:
+          - database_name
+        metrics:
+          - key: avg(credits_used)
+            name: credits_used_avg
+            type: gauge
+          - key: sum(credits_used)
+            name: credits_used_sum
+            type: gauge
+          - key: avg(bytes_transferred)
+            name: bytes_transferred_avg
+            type: gauge
+          - key: sum(bytes_transferred)
+            name: bytes_transferred_sum
+            type: gauge
+        statement: >-
+            select database_name, avg(credits_used), sum(credits_used),
+            avg(bytes_transferred), sum(bytes_transferred) from "SNOWFLAKE"."ACCOUNT_USAGE"."REPLICATION_USAGE_HISTORY"
+            where start_time >= date_trunc(day, current_date) group by 1;
+      # https://docs.snowflake.com/en/sql-reference/account-usage/stage_storage_usage_history.html
+      # - category: stage_storage_usage
+      #   help: average daily data storage usage in bytes for all the Snowflake internal stages in the account
+      #   labels:
+      #     - 'usage_date'
+      #   metrics:
+      #     - key: avg(average_stage_bytes)
+      #       name: stage_bytes_avg
+      #       type: gauge
+      #   statement: >-
+      #       select usage_date, avg(average_stage_bytes) from "SNOWFLAKE"."ACCOUNT_USAGE"."STAGE_STORAGE_USAGE_HISTORY" where usage_date >= date_trunc(day, current_date);
+      # https://docs.snowflake.com/en/sql-reference/account-usage/storage_usage.html
+      - category: storage_usage
+        help: "average daily data storage usage in bytes across the whole account"
+        metrics:
+          - key: STORAGE_BYTES
+            name: storage_bytes_avg
+            type: gauge
+          - key: STAGE_BYTES
+            name: stage_bytes_avg
+            type: gauge
+          - key: FAILSAFE_BYTES
+            name: failsafe_bytes_avg
+            type: gauge
+        statement: >-
+            SELECT STORAGE_BYTES, STAGE_BYTES, FAILSAFE_BYTES from "SNOWFLAKE"."ACCOUNT_USAGE"."STORAGE_USAGE" ORDER BY USAGE_DATE DESC LIMIT 1;
+      # https://docs.snowflake.com/en/sql-reference/account-usage/login_history.html
+      # - category: login_history
+      #   help: login attempts by Snowflake users
+      #   labels:
+      #     - EVENT_ID
+      #     - EVENT_TIMESTAMP
+      #     - EVENT_TYPE
+      #     - REPORTED_CLIENT_TYPE
+      #     - REPORTED_CLIENT_VERSION
+      #     - FIRST_AUTHENTICATION_FACTOR
+      #     - SECOND_AUTHENTICATION_FACTOR
+      #     - IS_SUCCESS
+      #     - ERROR_CODE
+      #     - ERROR_MESSAGE
+      #   metrics:
+      #     - key: the column name that will be used as the metric value
+      #       name: the name of the metric
+      #       type: gauge
+      #     - key: the column name that will be used as the metric value
+      #       name: the name of the metric
+      #       type: gauge
+      #   statement: >-
+      #       select EVENT_ID, EVENT_TIMESTAMP, EVENT_TYPE, REPORTED_CLIENT_TYPE, REPORTED_CLIENT_VERSION, FIRST_AUTHENTICATION_FACTOR, SECOND_AUTHENTICATION_FACTOR, IS_SUCCESS, ERROR_CODE, ERROR_MESSAGE from "SNOWFLAKE"."ACCOUNT_USAGE"."LOGIN_HISTORY" where is_success = 'NO' and event_timestamp > dateadd(minute, -120, getdate()) AND event_timestamp < dateadd(minute, -60, getdate());
+      # - category: "the category - all metrics in this category will have the same prefix"
+      #   help: Example
+      #   labels:
+      #     - 'LABEL1'
+      #     - 'LABEL2'
+      #   metrics:
+      #     - key: the column name that will be used as the metric value
+      #       name: the name of the metric
+      #       type: gauge
+      #     - key: the column name that will be used as the metric value
+      #       name: the name of the metric
+      #       type: gauge
+      #   statement: >-
+      #       sqlText
