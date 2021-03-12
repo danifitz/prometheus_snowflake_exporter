@@ -1,6 +1,6 @@
 snowflake:
   config:
-    default_fetch_interval: 30
+    default_fetch_interval: 1800
     prefix: snowflake
     metrics:
       # Account metering # https://docs.snowflake.com/en/sql-reference/account-usage/metering_history.html
