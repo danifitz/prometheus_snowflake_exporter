@@ -171,9 +171,9 @@ const gauges = config.snowflake.config.metrics.map(metric => {
         while (true) {
             // console.log('statements', statements);
             const rows = await snow.query(statements);
-            console.log(`Got ${rows.length} rows executing statement ${statements}`);
             
-            if (rows.length) {
+            if (rows.length > 0) {
+                console.info(`Got ${rows.length} rows executing statement ${statements}`);
                 rows.forEach((val) => {
 
                     for (let m in metrics) {
@@ -201,6 +201,8 @@ const gauges = config.snowflake.config.metrics.map(metric => {
                         }
                     }
                 })
+            } else {
+                console.log(`Did not create metric for ${category}, no rows returned from SQL statement`);
             }
             await new Promise((resolve) => setTimeout(resolve, fetchInterval * 1000));
         }
